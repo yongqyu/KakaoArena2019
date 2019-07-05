@@ -24,6 +24,23 @@ num_writers = len(id2writer)
 num_items = len(item_list)
 print(num_keywords, num_readers, num_writers, num_items)
 
+rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data.npy')
+rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data.npy')
+rnn_train_dataset = []
+for data in rnn_train_data:
+    reader = data[0]
+    readed = [item2elem[item] for item in data[1:]]
+    print(reader, readed)
+    break
+exit()
+
+
+train_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_train_data)))
+valid_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_valid_data)))
+torch.save(train_dataset, '/data/private/Arena/prepro_results/train_dataset.pkl')
+torch.save(valid_dataset, '/data/private/Arena/prepro_results/valid_dataset.pkl')
+
+'''
 read_path = '/data/private/Arena/datasets/read/'
 read_files = os.listdir(read_path)
 train_read_files = read_files[:int(len(read_files)*0.8)]
@@ -74,3 +91,4 @@ valid_data = np.concatenate(valid_data, 0)
 valid_dataset = data.TensorDataset(torch.from_numpy(valid_data))
 torch.save(valid_dataset, '/data/private/Arena/prepro_results/valid_dataset.pkl')
 valid_data_loader = data.DataLoader(valid_dataset, batch_size=1024, shuffle=False)
+'''
