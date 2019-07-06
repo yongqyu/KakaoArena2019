@@ -7,8 +7,6 @@ from models import GMF, RNN
 
 dev_users_path = '/data/private/Arena/datasets/predict/dev.users'
 test_users_path = '/data/private/Arena/datasets/predict/test.users'
-#rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data.npy', allow_pickle=True).item()
-rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data.npy')
 dev_mask = torch.from_numpy(np.load('/data/private/Arena/prepro_results/dev_mask.npy')).float().cuda()
 id2reader = np.load('/data/private/Arena/prepro_results/id2reader.npy')
 reader2id = np.load('/data/private/Arena/prepro_results/reader2id.npy', allow_pickle=True).item()
@@ -20,16 +18,15 @@ freq_item = ['@brunch_141', '@brunch_151', '@brunch_145', '@tenbody_1305', '@int
 hidden_dim = 256
 batch_size = 128
 num_keywords = 96894; num_readers = 310759; num_writers = 19066; num_items = 643105
-model = RNN(num_readers, num_writers, num_keywords, num_items,
-            hidden_dim, valid_tensor, writerid2items).cuda()
-model.load_state_dict(torch.load('./models/2_rnn_gmf.pkl'))
+model = RNN(num_readers, num_writers, num_keywords, num_items, hidden_dim).cuda()
+model.load_state_dict(torch.load('./models/6_rnn_gmf.pkl'))
 model.eval()
 
 file_w = open('./recommend.txt', 'w')
 file = open(dev_users_path, 'r')
 readers = file.read().splitlines()
-rnn_test_data = data.TensorDataset(torch.from_numpy(rnn_test_data))
-dev_loader = data.DataLoader(rnn_test_data, batch_size=batch_size, shuffle=False)
+dev_dataset = torch.load('/data/private/Arena/prepro_results/test_dataset.pkl')
+dev_loader = data.DataLoader(dev_dataset, batch_size=batch_size, shuffle=False)
 # [item_id, writer] + keywd + [reg_ts, meg_id]
 with torch.no_grad():
     for i, input in enumerate(tqdm(dev_loader)):

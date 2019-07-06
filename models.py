@@ -89,7 +89,7 @@ class GMF(nn.Module):
 
 
 class RNN(nn.Module):
-    def __init__(self, num_readers, num_writers, num_keywd, num_items, latent_dim, valid_tensor, readerid2items):
+    def __init__(self, num_readers, num_writers, num_keywd, num_items, latent_dim):
         super(RNN, self).__init__()
 
         self.num_readers = num_readers
@@ -98,22 +98,37 @@ class RNN(nn.Module):
         self.num_items = num_items
         self.latent_dim = latent_dim
         self.num_layer = 2
+        self.seq_length = 5
 
         self.embedding_reader = nn.Embedding(num_embeddings=self.num_readers, embedding_dim=self.latent_dim)
         self.embedding_items = nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
         #self.embedding_writer = nn.Embedding(num_embeddings=self.num_writers, embedding_dim=self.latent_dim)
-        #self.embedding_keywd = nn.Embedding(num_embeddings=self.num_keywd, embedding_dim=self.latent_dim, padding_idx=1)
+        self.embedding_keywd = nn.Embedding(num_embeddings=self.num_keywd, embedding_dim=self.latent_dim, padding_idx=1)
 
-        self.rnn = nn.GRU(self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
+        self.keywd_rnn = nn.GRU(self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
+        self.items_rnn = nn.GRU(self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
         self.fc = nn.Linear(in_features=self.latent_dim, out_features=self.num_items)
+
         nn.init.xavier_uniform_(self.fc.weight)
+        for name, param in list(self.keywd_rnn.named_parameters()) + \
+                           list(self.items_rnn.named_parameters()):
+            if 'weight_ih' in name:
+                nn.init.xavier_uniform_(param.data)
+            elif 'weight_hh' in name:
+                nn.init.orthogonal_(param.data)
 
     def forward(self, data):
-        reader_embedding = self.embedding_reader(data[:,0])
-        item_embedding = self.embedding_items(data[:,1:])
+        # batch_size x length x reader item_id writer keywd*5 reg_ts magazine_id
+        reader_embedding = self.embedding_reader(data[:,0,0])
+        item_embedding = self.embedding_items(data[:,:,1])
+        #writer_embedding = self.embedding_writer(data[:,:,2])
+        #keywd_embedding = self.embedding_keywd(data[:,:,3:8])
 
+        #hidden, _ = self.keywd_rnn(keywd_embedding.view(-1,self.seq_length,self.latent_dim)) # reader_embedding
+        #keywd_embedding = hidden[:,-1,:].view(data.size(0), data.size(1), self.latent_dim)
         reader_embedding = reader_embedding.unsqueeze(0).expand(self.num_layer, -1, -1).contiguous()
-        hidden, _ = self.rnn(item_embedding, reader_embedding)
+        #hidden, _ = self.items_rnn(torch.cat([item_embedding, keywd_embedding], 2), reader_embedding)
+        hidden, _ = self.items_rnn(item_embedding, reader_embedding)
         output = self.fc(hidden[:,-1,:])
 
         return output

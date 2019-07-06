@@ -26,19 +26,28 @@ print(num_keywords, num_readers, num_writers, num_items)
 
 rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data.npy')
 rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data.npy')
+rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data.npy')
 rnn_train_dataset = []
-for data in rnn_train_data:
-    reader = data[0]
-    readed = [item2elem[item] for item in data[1:]]
-    print(reader, readed)
-    break
-exit()
-
-
-train_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_train_data)))
-valid_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_valid_data)))
+for data_ in rnn_train_data:
+    reader = np.array([[data_[0]]] * (len(data_)-1))
+    readed = np.array([[item]+item2elem[item] for item in data_[1:]])
+    rnn_train_dataset.append(np.concatenate((reader, readed), 1))
+rnn_valid_dataset = []
+for data_ in rnn_valid_data:
+    reader = np.array([[data_[0]]] * (len(data_)-1))
+    readed = np.array([[item]+item2elem[item] for item in data_[1:]])
+    rnn_valid_dataset.append(np.concatenate((reader, readed), 1))
+rnn_test_dataset = []
+for data_ in rnn_test_data:
+    reader = np.array([[data_[0]]] * (len(data_)-1))
+    readed = np.array([[item]+item2elem[item] for item in data_[1:]])
+    rnn_test_dataset.append(np.concatenate((reader, readed), 1))
+train_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_train_dataset)))
+valid_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_valid_dataset)))
+test_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_test_dataset)))
 torch.save(train_dataset, '/data/private/Arena/prepro_results/train_dataset.pkl')
 torch.save(valid_dataset, '/data/private/Arena/prepro_results/valid_dataset.pkl')
+torch.save(test_dataset, '/data/private/Arena/prepro_results/test_dataset.pkl')
 
 '''
 read_path = '/data/private/Arena/datasets/read/'
