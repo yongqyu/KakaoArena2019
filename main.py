@@ -36,8 +36,10 @@ best_loss = 9999
 for epoch in range(num_epochs):
     model.train()
     for data in tqdm.tqdm(train_loader, desc='Train'):
-        logits = model(data[0][:,:-1].cuda())
-        loss = criterion(logits, data[0][:,-1,1].cuda())
+        logits = model(data[0][:,:-2].cuda())
+        loss1 = criterion(logits, data[0][:,-2,1].cuda())
+        loss2 = criterion(logits, data[0][:,-1,1].cuda())
+        loss = loss1 * 0.7 + loss2 * 0.3
 
         model.zero_grad()
         loss.backward()
@@ -49,11 +51,13 @@ for epoch in range(num_epochs):
             valid_loss = 0
             for i, data in enumerate(tqdm.tqdm(valid_loader, desc='Valid')):
                 #actual = data[0][:,-1].numpy().tolist()
-                preds = model(data[0][:,:-1].cuda())
+                preds = model(data[0][:,:-2].cuda())
                 #preds = torch.sort(preds, descending=True)[1][:100].cpu().numpy().tolist()
                 #ap = [metrics.apk(a, p, 100) for (a,p) in zip(actual, preds)]
                 #ap = [1/(p.index(a)+1) if a in p else 0 for (a,p) in zip(actual, preds)]
-                loss = criterion(preds, data[0][:,-1,1].cuda())
+                loss1 = criterion(preds, data[0][:,-2,1].cuda())
+                loss2 = criterion(preds, data[0][:,-1,1].cuda())
+                loss = loss1 * 0.7 + loss2 * 0.3
                 valid_loss += torch.mean(loss).cpu().item()
 
         print('epoch: '+str(epoch+1)+' Loss: '+str(valid_loss/(i+1)))

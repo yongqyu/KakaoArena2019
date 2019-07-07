@@ -102,11 +102,12 @@ class RNN(nn.Module):
 
         self.embedding_reader = nn.Embedding(num_embeddings=self.num_readers, embedding_dim=self.latent_dim)
         self.embedding_items = nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
-        #self.embedding_writer = nn.Embedding(num_embeddings=self.num_writers, embedding_dim=self.latent_dim)
+        self.embedding_writer = nn.Embedding(num_embeddings=self.num_writers, embedding_dim=self.latent_dim)
         self.embedding_keywd = nn.Embedding(num_embeddings=self.num_keywd, embedding_dim=self.latent_dim, padding_idx=1)
 
         self.keywd_rnn = nn.GRU(self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
-        self.items_rnn = nn.GRU(self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
+        self.items_rnn = nn.GRU(2*self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
+        self.items_fc = nn.Linear(3*self.latent_dim, 2*self.latent_dim)
         self.fc = nn.Linear(in_features=self.latent_dim, out_features=self.num_items)
 
         nn.init.xavier_uniform_(self.fc.weight)
@@ -121,14 +122,15 @@ class RNN(nn.Module):
         # batch_size x length x reader item_id writer keywd*5 reg_ts magazine_id
         reader_embedding = self.embedding_reader(data[:,0,0])
         item_embedding = self.embedding_items(data[:,:,1])
-        #writer_embedding = self.embedding_writer(data[:,:,2])
-        #keywd_embedding = self.embedding_keywd(data[:,:,3:8])
+        writer_embedding = self.embedding_writer(data[:,:,2])
+        keywd_embedding = self.embedding_keywd(data[:,:,3:8])
 
-        #hidden, _ = self.keywd_rnn(keywd_embedding.view(-1,self.seq_length,self.latent_dim)) # reader_embedding
-        #keywd_embedding = hidden[:,-1,:].view(data.size(0), data.size(1), self.latent_dim)
+        hidden, _ = self.keywd_rnn(keywd_embedding.view(-1,self.seq_length,self.latent_dim)) # reader_embedding
+        keywd_embedding = hidden[:,-1,:].view(data.size(0), data.size(1), self.latent_dim)
+        merged_item_embedding = self.items_fc(torch.cat([item_embedding, writer_embedding, keywd_embedding], 2))
         reader_embedding = reader_embedding.unsqueeze(0).expand(self.num_layer, -1, -1).contiguous()
-        #hidden, _ = self.items_rnn(torch.cat([item_embedding, keywd_embedding], 2), reader_embedding)
-        hidden, _ = self.items_rnn(item_embedding, reader_embedding)
+        hidden, _ = self.items_rnn(merged_item_embedding, reader_embedding)
+        #hidden, _ = self.items_rnn(item_embedding, reader_embedding)
         output = self.fc(hidden[:,-1,:])
 
         return output

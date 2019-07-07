@@ -19,7 +19,7 @@ hidden_dim = 256
 batch_size = 128
 num_keywords = 96894; num_readers = 310759; num_writers = 19066; num_items = 643105
 model = RNN(num_readers, num_writers, num_keywords, num_items, hidden_dim).cuda()
-model.load_state_dict(torch.load('./models/6_rnn_gmf.pkl'))
+model.load_state_dict(torch.load('./models/7_rnn_keywd.pkl'))
 model.eval()
 
 file_w = open('./recommend.txt', 'w')
