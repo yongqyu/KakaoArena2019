@@ -89,13 +89,14 @@ class GMF(nn.Module):
 
 
 class RNN(nn.Module):
-    def __init__(self, num_readers, num_writers, num_keywd, num_items, latent_dim):
+    def __init__(self, num_readers, num_writers, num_keywd, num_items, num_magazine, latent_dim):
         super(RNN, self).__init__()
 
         self.num_readers = num_readers
         self.num_writers = num_writers
         self.num_keywd = num_keywd
         self.num_items = num_items
+        self.num_magazine = num_magazine
         self.latent_dim = latent_dim
         self.num_layer = 2
         self.seq_length = 5
@@ -104,10 +105,11 @@ class RNN(nn.Module):
         self.embedding_items = nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
         self.embedding_writer = nn.Embedding(num_embeddings=self.num_writers, embedding_dim=self.latent_dim)
         self.embedding_keywd = nn.Embedding(num_embeddings=self.num_keywd, embedding_dim=self.latent_dim, padding_idx=1)
+        #self.embedding_magazine = nn.Embedding(num_embeddings=self.num_magazine, embedding_dim=self.latent_dim//2)
 
         self.keywd_rnn = nn.GRU(self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
-        self.items_rnn = nn.GRU(2*self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
-        self.items_fc = nn.Linear(3*self.latent_dim, 2*self.latent_dim)
+        self.items_rnn = nn.GRU(3*self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
+        self.items_fc = nn.Linear(3*self.latent_dim, 3*self.latent_dim)
         self.fc = nn.Linear(in_features=self.latent_dim, out_features=self.num_items)
 
         nn.init.xavier_uniform_(self.fc.weight)
@@ -124,6 +126,7 @@ class RNN(nn.Module):
         item_embedding = self.embedding_items(data[:,:,1])
         writer_embedding = self.embedding_writer(data[:,:,2])
         keywd_embedding = self.embedding_keywd(data[:,:,3:8])
+        #magazine_embedding = self.embedding_magazine(data[:,:,9])
 
         hidden, _ = self.keywd_rnn(keywd_embedding.view(-1,self.seq_length,self.latent_dim)) # reader_embedding
         keywd_embedding = hidden[:,-1,:].view(data.size(0), data.size(1), self.latent_dim)

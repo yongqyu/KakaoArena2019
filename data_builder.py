@@ -16,17 +16,20 @@ reader2id = np.load('/data/private/Arena/prepro_results/reader2id.npy', allow_pi
 reader2elem = np.load('/data/private/Arena/prepro_results/reader2elem.npy', allow_pickle=True).item()
 id2writer = np.load('/data/private/Arena/prepro_results/id2writer.npy')
 writer2id = np.load('/data/private/Arena/prepro_results/writer2id.npy', allow_pickle=True).item()
+id2magazine = np.load('/data/private/Arena/prepro_results/id2magazine.npy')
+magazine2id = np.load('/data/private/Arena/prepro_results/magazine2id.npy', allow_pickle=True).item()
 
 max_keylen = 5
 num_keywords = len(keyword_dict)
 num_readers = len(id2reader)
 num_writers = len(id2writer)
 num_items = len(item_list)
-print(num_keywords, num_readers, num_writers, num_items)
+num_magazine = len(id2magazine)
+print(num_keywords, num_readers, num_writers, num_items, num_magazine)
 
-rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data2.npy')
-rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data2.npy')
-rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data2.npy')
+rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data.npy')
+rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data.npy')
+rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data.npy')
 rnn_train_dataset = []
 for data_ in rnn_train_data:
     reader = np.array([[data_[0]]] * (len(data_)-1))

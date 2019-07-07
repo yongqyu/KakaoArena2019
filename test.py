@@ -17,10 +17,11 @@ freq_item = ['@brunch_141', '@brunch_151', '@brunch_145', '@tenbody_1305', '@int
 #freq_item = ['@brunch_151' '@sweetannie_145' '@chofang1_15' '@seochogirl_1' '@seochogirl_16' '@seochogirl_18' '@seochogirl_17' '@conbus_43' '@tenbody_1305' '@brunch_152' '@seochogirl_11' '@hjl0520_26' '@seochogirl_12' '@intlovesong_28' '@seochogirl_13' '@seochogirl_14' '@dailylife_207' '@seochogirl_15' '@wootaiyoung_85' '@seochogirl_10' '@steven_179' '@seochogirl_28' '@seochogirl_20' '@seochogirl_29' '@noey_130' '@shindong_38' '@seochogirl_8' '@shanghaiesther_46' '@tenbody_1164' '@seochogirl_7' '@seochogirl_6' '@mothertive_66' '@seochogirl_2' '@seochogirl_9' '@seochogirl_3' '@deckey1985_51' '@kotatsudiary_66' '@bzup_281' '@seochogirl_4' '@roysday_314' '@hongmilmil_33' '@seochogirl_5' '@ohmygod_42' '@boot0715_115' '@hyehyodam_19' '@hjl0520_28' '@wikitree_54' '@fuggyee_108' '@brunch_149' '@syshine7_57' '@mightysense_9' '@roysday_313' '@sweetannie_146' '@onyouhe_98' '@roysday_307' '@ladybob_30' '@13july_92' '@dryjshin_255' '@aemae-human_15' '@dailylife_219' '@tamarorim_133' '@sunnysohn_60' '@keeuyo_57' '@anetmom_52' '@ladybob_29' '@moment-yet_155' '@yoriyuri_12' '@dong02_1372' '@kidjaydiary_6' '@curahee_7' '@thinkaboutlove_234' '@thebluenile86_4' '@scienceoflove_5' '@hjl0520_27' '@jijuyeo_9' '@anti-essay_150' '@13july_94' '@seochogirl_41' '@dryjshin_256' '@aemae-human_9' '@mentorgrace_8' '@anetmom_47' '@psychiatricnews_18' '@namgizaa_46' '@dailylife_178' '@boot0715_111' '@moment-yet_157' '@keeuyo_56' '@kam_65' '@honeytip_945' '@choyoungduke_157' '@jinbread_111' '@dreamwork9_25' '@kam_60' '@dancingsnail_65' '@kyungajgba_60' '@syshine7_56' '@dancingsnail_64' '@anti-essay_153' '@mariandbook_413']
 hidden_dim = 256
 batch_size = 128
-num_keywords = 96894; num_readers = 310759; num_writers = 19066; num_items = 643105
-model = RNN(num_readers, num_writers, num_keywords, num_items, hidden_dim).cuda()
-model.load_state_dict(torch.load('./models/7_rnn_keywd.pkl'))
+num_keywords = 96894; num_readers = 310759; num_writers = 19066; num_items = 643105; num_magazine = 28130
+model = RNN(num_readers, num_writers, num_keywords, num_items, num_magazine, hidden_dim).cuda()
 model.eval()
+model.load_state_dict(torch.load('./models/7_rnn_keywd.pkl'))
+print(model)
 
 file_w = open('./recommend.txt', 'w')
 file = open(dev_users_path, 'r')
