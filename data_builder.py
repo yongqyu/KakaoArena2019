@@ -27,9 +27,9 @@ num_items = len(item_list)
 num_magazine = len(id2magazine)
 print(num_keywords, num_readers, num_writers, num_items, num_magazine)
 
-rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data.npy')
-rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data.npy')
-rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data.npy')
+rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data2.npy')
+rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data2.npy')
+rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data2.npy')
 rnn_train_dataset = []
 for data_ in rnn_train_data:
     reader = np.array([[data_[0]]] * (len(data_)-1))
