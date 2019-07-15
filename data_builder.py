@@ -26,25 +26,30 @@ num_writers = len(id2writer)
 num_items = len(item_list)
 num_magazine = len(id2magazine)
 print(num_keywords, num_readers, num_writers, num_items, num_magazine)
+ts_min = 1430409600 # 20150501000000 GMT+8
+aday = 8640000
 
-rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data2.npy')
-rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data2.npy')
-rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data2.npy')
+rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data.npy')
+rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data.npy')
+rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data.npy')
 rnn_train_dataset = []
 for data_ in rnn_train_data:
-    reader = np.array([[data_[0]]] * (len(data_)-1))
-    readed = np.array([[item]+item2elem[item] for item in data_[1:]])
-    rnn_train_dataset.append(np.concatenate((reader, readed), 1))
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat = np.array([[(data_[1] - ts_min) / aday]] *  (len(data_)-2))
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    rnn_train_dataset.append(np.concatenate((reader, readat, readed), 1))
 rnn_valid_dataset = []
 for data_ in rnn_valid_data:
-    reader = np.array([[data_[0]]] * (len(data_)-1))
-    readed = np.array([[item]+item2elem[item] for item in data_[1:]])
-    rnn_valid_dataset.append(np.concatenate((reader, readed), 1))
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat = np.array([[(data_[1] - ts_min) / aday]] *  (len(data_)-2))
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    rnn_valid_dataset.append(np.concatenate((reader, readat, readed), 1))
 rnn_test_dataset = []
 for data_ in rnn_test_data:
-    reader = np.array([[data_[0]]] * (len(data_)-1))
-    readed = np.array([[item]+item2elem[item] for item in data_[1:]])
-    rnn_test_dataset.append(np.concatenate((reader, readed), 1))
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat = np.array([[(1551369600 - ts_min) / aday]] *  (len(data_)-2))
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    rnn_test_dataset.append(np.concatenate((reader, readat, readed), 1))
 train_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_train_dataset)))
 valid_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_valid_dataset)))
 test_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_test_dataset)))
@@ -53,54 +58,45 @@ torch.save(valid_dataset, '/data/private/Arena/prepro_results/valid_dataset.pkl'
 torch.save(test_dataset, '/data/private/Arena/prepro_results/test_dataset.pkl')
 
 '''
-read_path = '/data/private/Arena/datasets/read/'
-read_files = os.listdir(read_path)
-train_read_files = read_files[:int(len(read_files)*0.8)]
-valid_read_files = read_files[int(len(read_files)*0.8):]
-
-train_data = []
-for read_file in tqdm.tqdm(train_read_files, desc='Train'):
-    file = open(read_path+read_file, 'r')
-    data_ = file.readlines()
-    for line in data_:
-        line = line.split(' ')
-        subs = [item_dict[item] for item in line[1:-1] if item_dict.get(item) != None]
-        if not subs:
-            continue
-        subs_elem = np.array([item2elem.get(sub) for sub in subs])
-        #negs = random.sample(list(set(range(num_items))-set(subs)), len(subs))
-        negs = [sum(x)%(num_items-1)+1 for x in zip(subs, np.random.choice(range(1024,2048), len(subs)))]
-        negs_elem = np.array([item2elem.get(neg) for neg in negs])
-        reader = [reader2id[line[0]] if reader2id.get(line[0]) else reader2id['unk']]*len(subs)
-
-        row = np.concatenate((np.stack((reader, subs, negs), -1), subs_elem, negs_elem), 1)
-        train_data.append(torch.from_numpy(row))
-
-train_data = torch.cat(train_data, 0)
-train_dataset = data.TensorDataset(train_data)
+for data_ in rnn_train_data:
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat = data_[1]
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    if sum(readat < readed[:,7]) > 0:
+        print(readat, readed[:,7], readed[:,0])
+        continue
+    readed[:,7] = (readat - readed[:,7]) / ts_gap
+    readed_sq = np.square(readed[:,7])
+    readed_sqrt = np.sqrt(readed[:,7])
+    readed = np.concatenate((readed[:,:8], np.array([readed_sq, readed_sqrt]).transpose(), readed[:,8:]), 1)
+    rnn_train_dataset.append(np.concatenate((reader, readed), 1))
+rnn_valid_dataset = []
+for data_ in rnn_valid_data:
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat = data_[1]
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    if sum(readat < readed[:,7]) > 0:
+        print(readat, readed[:,7], readed[:,0])
+        continue
+    readed[:,7] = (readat - readed[:,7]) / ts_gap
+    readed_sq = np.square(readed[:,7])
+    readed_sqrt = np.sqrt(readed[:,7])
+    readed = np.concatenate((readed[:,:8], np.array([readed_sq, readed_sqrt]).transpose(), readed[:,8:]), 1)
+    rnn_valid_dataset.append(np.concatenate((reader, readed), 1))
+rnn_test_dataset = []
+for data_ in rnn_test_data:
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat = 1551369600 # 20190301000000 GMT+8
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    readed[:,7] = (readat - readed[:,7]) / ts_gap
+    readed_sq = np.square(readed[:,7])
+    readed_sqrt = np.sqrt(readed[:,7])
+    readed = np.concatenate((readed[:,:8], np.array([readed_sq, readed_sqrt]).transpose(), readed[:,8:]), 1)
+    rnn_test_dataset.append(np.concatenate((reader, readed), 1))
+train_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_train_dataset)))
+valid_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_valid_dataset)))
+test_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_test_dataset)))
 torch.save(train_dataset, '/data/private/Arena/prepro_results/train_dataset.pkl')
-train_data_loader = data.DataLoader(train_dataset, batch_size=1024, shuffle=True)
-
-valid_data = []
-for read_file in tqdm.tqdm(valid_read_files, desc='Valid'):
-    file = open(read_path+read_file, 'r')
-    try:
-        data_ = file.readlines()
-    except:
-        print(read_file)
-    for line in data_:
-        line = line.split(' ')
-        subs = [item_dict[item] for item in line[1:-1] if item_dict.get(item) != None]
-        if not subs:
-            continue
-        subs_elem = np.array([item2elem.get(sub) for sub in subs])
-        reader = [reader2id[line[0]] if reader2id.get(line[0]) else reader2id['unk']]*len(subs)
-
-        row = np.concatenate((np.stack((reader, subs), -1), subs_elem), 1)
-        valid_data.append(row)
-
-valid_data = np.concatenate(valid_data, 0)
-valid_dataset = data.TensorDataset(torch.from_numpy(valid_data))
 torch.save(valid_dataset, '/data/private/Arena/prepro_results/valid_dataset.pkl')
-valid_data_loader = data.DataLoader(valid_dataset, batch_size=1024, shuffle=False)
+torch.save(test_dataset, '/data/private/Arena/prepro_results/test_dataset.pkl')
 '''
