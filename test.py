@@ -13,17 +13,19 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 dev_users_path = '/data/private/Arena/datasets/predict/dev.users'
 test_users_path = '/data/private/Arena/datasets/predict/test.users'
 dev_mask = torch.from_numpy(np.load('/data/private/Arena/prepro_results/dev_mask.npy')).float().cuda()
+unk_mask = np.load('/data/private/Arena/prepro_results/unk_mask.npy')
 item_list = np.load('/data/private/Arena/prepro_results/item_list.npy')
+valid_tensor = torch.load('/data/private/Arena/prepro_results/valid_writer_keywd.pkl').to(device)
 
 model = RNN(args.num_readers, args.num_writers, args.num_keywords,
-            args.num_items, args.num_magazines, args.hid_dim).to(device)
+            args.num_items, args.num_magazines, args.hid_dim, valid_tensor).to(device)
 #encoder_layer = TransformerEncoderLayer(args.hid_dim, args.num_heads)
 #model = TransformerEncoder(encoder_layer, 4,#num_layers,
 #                           args.num_readers, args.num_writers, args.num_keywords,
 #                           args.num_items, args.num_magazines, args.hid_dim).to(device)
 print(model)
 model.eval()
-model.load_state_dict(torch.load('./models/20_rnn_residual.pkl'))
+model.load_state_dict(torch.load('./models/7_rnn_residual.pkl'))
 
 file_w = open('./recommend.txt', 'w')
 file = open(dev_users_path, 'r')
@@ -33,8 +35,9 @@ dev_loader = data.DataLoader(dev_dataset, batch_size=args.batch_size, shuffle=Fa
 # [item_id, writer] + keywd + [reg_ts, meg_id]
 with torch.no_grad():
     for i, input in enumerate(tqdm(dev_loader)):
-        preds = model(input[0].to(device))
-        preds = torch.mul(preds, dev_mask[i*args.batch_size:(i+1)*args.batch_size])
+        preds,_,_ = model(input[0].to(device), mode='Test')
+        preds = torch.mul(preds[:,0], dev_mask[i*args.batch_size:(i+1)*args.batch_size])
+        #preds[unk_mask] += 3
 
         sorted_dot_product = hsort(preds)
         for reader, pred in zip(readers[i*args.batch_size:],sorted_dot_product):
