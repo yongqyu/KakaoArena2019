@@ -4,10 +4,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.utils.data as data
-import ml_metrics as metrics
 
 from models import RNN
-from metrics import evaluate
 from utils import ap
 from config import get_args
 args = get_args()
@@ -37,23 +35,24 @@ print(model)
 print('# of params : ', params)
 
 if args.start_epoch:
-    model.load_state_dict(torch.load(args.save_path+'%d_transformer.pkl' % args.start_epoch))
+    model.load_state_dict(torch.load(args.save_path+'%d_rnn_residual.pkl' % args.start_epoch))
 
 best_loss = 9999999
 for epoch in range(args.num_epochs):
     model.train()
     for i, data in enumerate(tqdm.tqdm(train_loader, desc='Train')):
-        item_logits, writer_logits, keywd_logits = model(data[0][:,:-1].to(device), mode='Train')
+        data = data[0].long().to(device)
+        item_logits, keywd_logits = model(data[:,:-1], mode='Train')
         #keywd_target0 = torch.zeros([data[0].size(0), args.num_keywords])
         #keywd_target0 = keywd_target0.scatter_(1,data[0][:,-2,5:10].long(),1).to(device)
-        # keywd_target1 = torch.zeros([data[0].size(0), args.num_keywords])
-        # keywd_target1 = keywd_target1.scatter_(1,data[0][:,-1,5:10].long(),1).to(device)
+        #keywd_target1 = torch.zeros([data[0].size(0), args.num_keywords])
+        #keywd_target1 = keywd_target1.scatter_(1,data[0][:,-1,5:10].long(),1).to(device)
                # criterion(item_logits[:,0], data[0][:,-2,3].to(device).long()) + \
                # criterion(writer_logits[:,0], data[0][:,-2,4].to(device).long()) + \
                # b_criterion(keywd_logits[:,0], keywd_target0) + \
-        loss = criterion(item_logits[:,0], data[0][:,-1,3].to(device).long())# + \
-               # criterion(writer_logits[:,0], data[0][:,-1,4].to(device).long()) + \
-               # b_criterion(keywd_logits[:,0], keywd_target1)
+        loss = criterion(item_logits[:,0], data[:,-1,2].long())
+               #b_criterion(keywd_logits[:,0], keywd_target1)
+               #criterion(writer_logits[:,0], data[0][:,-1,4].to(device).long()) + \
 
         model.zero_grad()
         loss.backward()
@@ -64,13 +63,14 @@ for epoch in range(args.num_epochs):
             model.eval()
             valid_loss = 0
             for i, data in enumerate(tqdm.tqdm(valid_loader, desc='Valid')):
-                item_preds, _, _ = model(data[0][:,:-1].to(device), mode='Valid')
-                loss = criterion(item_preds[:,0], data[0][:,-1,3].to(device).long())
-                valid_loss += torch.mean(loss).cpu().item()
+                data = data[0].long().to(device)
+                item_preds, _ = model(data[:,:-1], mode='Valid')
+                loss = criterion(item_preds[:,0], data[:,-1,2].long()).cpu().item()
+                valid_loss += loss
 
         print('epoch: '+str(epoch+1)+' Loss: '+str(valid_loss/(i+1)))
         if best_loss > valid_loss/(i+1):
             best_loss = valid_loss/(i+1)
             best_epoch = epoch+1
-            torch.save(model.state_dict(), args.save_path+'%d_rnn_residual.pkl' % (epoch+1))
+            torch.save(model.state_dict(), args.save_path+'%d_cnn.pkl' % (epoch+1))
     scheduler.step()

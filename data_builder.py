@@ -26,34 +26,31 @@ num_writers = len(id2writer)
 num_items = len(item_list)
 num_magazine = len(id2magazine)
 print(num_keywords, num_readers, num_writers, num_items, num_magazine)
-ts_min = 1538319600 # 20181001000000 GMT+8
-ts_max = 1552575600 # 20190315000000 GMT+8
-ts_gap = ts_max - ts_min
 
-rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data2.npy')
-rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data2.npy')
-rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data2.npy')
+rnn_train_data = np.load('/data/private/Arena/prepro_results/rnn_train_data.npy')
+rnn_valid_data = np.load('/data/private/Arena/prepro_results/rnn_valid_data.npy')
+rnn_test_data = np.load('/data/private/Arena/prepro_results/rnn_test_data.npy')
 rnn_train_dataset = []
 for data_ in rnn_train_data:
-    reader = np.array([[data_[0]]] * (len(data_)-3))
-    readat1 = np.array([[data_[1]]] *  (len(data_)-3))
-    readat2 = np.array([[data_[2]]] *  (len(data_)-3))
-    readed = np.array([[item]+item2elem[item] for item in data_[3:]])
-    rnn_train_dataset.append(np.concatenate((reader, readat1, readat2, readed), 1))
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat1 = np.array([[data_[1]]] *  (len(data_)-2))
+    #readat2 = np.array([[data_[2]]] *  (len(data_)-3))
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    rnn_train_dataset.append(np.concatenate((reader, readat1, readed), 1))
 rnn_valid_dataset = []
 for data_ in rnn_valid_data:
-    reader = np.array([[data_[0]]] * (len(data_)-3))
-    readat1 = np.array([[data_[1]]] *  (len(data_)-3))
-    readat2 = np.array([[data_[2]]] *  (len(data_)-3))
-    readed = np.array([[item]+item2elem[item] for item in data_[3:]])
-    rnn_valid_dataset.append(np.concatenate((reader, readat1, readat2, readed), 1))
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat1 = np.array([[data_[1]]] *  (len(data_)-2))
+    #readat2 = np.array([[data_[2]]] *  (len(data_)-3))
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    rnn_valid_dataset.append(np.concatenate((reader, readat1, readed), 1))
 rnn_test_dataset = []
 for data_ in rnn_test_data:
-    reader = np.array([[data_[0]]] * (len(data_)-3))
-    readat1 = np.array([[data_[1]]] *  (len(data_)-3))
-    readat2 = np.array([[data_[2]]] *  (len(data_)-3))
-    readed = np.array([[item]+item2elem[item] for item in data_[3:]])
-    rnn_test_dataset.append(np.concatenate((reader, readat1, readat2, readed), 1))
+    reader = np.array([[data_[0]]] * (len(data_)-2))
+    readat1 = np.array([[data_[1]]] *  (len(data_)-2))
+    #readat2 = np.array([[data_[2]]] *  (len(data_)-3))
+    readed = np.array([[item]+item2elem[item] for item in data_[2:]])
+    rnn_test_dataset.append(np.concatenate((reader, readat1, readed), 1))
 train_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_train_dataset)))
 valid_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_valid_dataset)))
 test_dataset = data.TensorDataset(torch.from_numpy(np.array(rnn_test_dataset)))
