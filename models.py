@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 class RNN(nn.Module):
-    def __init__(self, num_readers, num_writers, num_keywd, num_items, num_magazine, latent_dim, dev_tensor):
+    def __init__(self, num_readers, num_writers, num_keywd, num_items, num_magazine, latent_dim, dev_tensor, dropout=0.1):
         super(RNN, self).__init__()
 
         self.num_readers = num_readers
@@ -16,6 +16,7 @@ class RNN(nn.Module):
         self.num_magazine = num_magazine
         self.latent_dim = latent_dim
         self.dev_tensor = dev_tensor
+        self.dropout = dropout
         self.num_layer = 2
         self.keywd_seq_length = 5
 
@@ -29,22 +30,21 @@ class RNN(nn.Module):
         nn.init.xavier_normal_(self.ts_min_embedding.data)
         nn.init.xavier_normal_(self.ts_max_embedding.data)
 
-        self.encoder_rnn = nn.GRU(self.latent_dim, self.latent_dim, self.num_layer, batch_first=True)
-        self.decoder_rnn = nn.GRU(self.latent_dim, self.latent_dim, 1, batch_first=True)
+        self.user_fc = nn.Linear(3*self.latent_dim, 2*self.latent_dim)
+        self.encoder_rnn = nn.GRU(self.latent_dim, 2*self.latent_dim, batch_first=True)
+        self.decoder_attn = nn.MultiheadAttention(2*self.latent_dim, 8, 0.1)
         self.encoder_fc = nn.Linear(4*self.latent_dim, self.latent_dim)
-        self.decoder_fc = nn.Linear(4*self.latent_dim, self.latent_dim)
-        self.writer_idx_fc = nn.Linear(in_features=self.latent_dim, out_features=self.num_writers)
+        self.decoder_fc = nn.Linear(4*self.latent_dim, 2*self.latent_dim)
         self.keywd_idx_fc = nn.Linear(in_features=self.latent_dim, out_features=self.num_keywd)
 
         self.predict_bias = nn.Parameter(torch.Tensor(1,self.num_items), requires_grad=True)
         nn.init.xavier_normal_(self.predict_bias)
 
+        nn.init.xavier_uniform_(self.user_fc.weight)
         nn.init.xavier_uniform_(self.encoder_fc.weight)
         nn.init.xavier_uniform_(self.decoder_fc.weight)
-        nn.init.xavier_uniform_(self.writer_idx_fc.weight)
         nn.init.xavier_uniform_(self.keywd_idx_fc.weight)
-        for name, param in list(self.encoder_rnn.named_parameters()) + \
-                           list(self.decoder_rnn.named_parameters()):
+        for name, param in list(self.encoder_rnn.named_parameters()):
             if 'weight_ih' in name:
                 nn.init.xavier_uniform_(param.data)
             elif 'weight_hh' in name:
@@ -53,35 +53,33 @@ class RNN(nn.Module):
     def interpolate(self, input):
         return self.ts_max_embedding*input + self.ts_min_embedding*(1-input)
 
-    def forward(self, data, mode='Train'):
-        # batch_size x length x reader readat*2 item_id writer keywd*5 reg_ts magazine_id
+    def forward(self, reader, items, mode='Train'):
+        # reader readerat reader_f*8 reader_k*8 (item writer keywd*5 reg_ts maga)*N
         ## reader + readat
-        reader_embedding = self.embedding_reader(data[:,0,0].long())
+        reader_embedding = self.embedding_reader(reader[:,0].long())
+        writer_embedding = torch.mean(self.embedding_writer(reader[:,2:10].long()), 1)
+        keyword_embedding = torch.mean(self.embedding_keywd(reader[:,10:18].long()), 1)
         if mode == 'Train':
-            #readat_embedding_0 = self.interpolate(data[:,0,1].float().unsqueeze(-1))
-            readat_embedding_1 = self.interpolate(data[:,0,2].float().unsqueeze(-1))
-            #readat_embedding = torch.stack([readat_embedding_0, readat_embedding_1], 1)
-            readat_embedding = readat_embedding_1.unsqueeze(1)
-        elif mode == 'Valid':
-            readat_embedding = self.interpolate(data[:,0,2].float().unsqueeze(-1)).unsqueeze(1)
-        elif mode == 'Test':
-            readat_embedding_0 = self.interpolate(torch.tensor([[0.915]]*data.size(0)).cuda())
-            readat_embedding_1 = self.interpolate(torch.tensor([[0.951]]*data.size(0)).cuda())
-            readat_embedding_2 = self.interpolate(torch.tensor([[0.99]]*data.size(0)).cuda())
-            readat_embedding = torch.stack([readat_embedding_0, readat_embedding_1, readat_embedding_2], 1)
+            readat_embedding = self.interpolate(reader[:,1].float().unsqueeze(-1))
+        elif mode == 'Dev' or mode == 'Test':
+            readat_embedding = self.interpolate(torch.tensor([[0.915]]*reader.size(0)).cuda())
+        query_embedding = self.user_fc(torch.cat([readat_embedding, writer_embedding,
+                                                  keyword_embedding], 1)).unsqueeze(0)
+        query_embedding = F.dropout(query_embedding, self.dropout)
 
         ## item elements
-        writer_embedding = self.embedding_writer(data[:,:,4].long())
-        keywd_embedding = torch.mean(self.embedding_keywd(data[:,:,5:10].long()), 2)
-        reg_embedding = self.interpolate(data[:,:,10].float().view(-1,1)).view(-1,writer_embedding.size(1),self.latent_dim)
-        magazine_embedding = self.embedding_magazine(data[:,:,11].long())
-
-        ## encode + decode
+        writer_embedding = self.embedding_writer(items[:,:,1].long())
+        keywd_embedding = torch.mean(self.embedding_keywd(items[:,:,2:7].long()), 2)
+        reg_embedding = self.interpolate(items[:,:,7].float().view(-1,1)).view(-1,writer_embedding.size(1),self.latent_dim)
+        magazine_embedding = self.embedding_magazine(items[:,:,8].long())
         merged_item_embedding = self.encoder_fc(torch.cat([reg_embedding, writer_embedding, #item_embedding,
                                                            keywd_embedding, magazine_embedding], 2))
-        reader_embedding = reader_embedding.unsqueeze(0).expand(self.num_layer, -1, -1).contiguous()
-        _, hidden = self.encoder_rnn(merged_item_embedding, reader_embedding)
-        output, _ = self.decoder_rnn(readat_embedding, hidden[1].unsqueeze(0))
+        merged_item_embedding = F.dropout(merged_item_embedding, self.dropout)
+
+        ## encode + decode
+        hidden, _ = self.encoder_rnn(merged_item_embedding, reader_embedding)
+        hidden = hidden.permute(1,0,2)
+        output, _ = self.decoder_attn(query_embedding, hidden, hidden)
 
         ## dev embedding
         dev_writer_emb = self.embedding_writer(self.dev_tensor[:,1].long())
@@ -90,12 +88,11 @@ class RNN(nn.Module):
         dev_magazine_emb = self.embedding_magazine(self.dev_tensor[:,8].long())
         merged_dev_embedding = self.decoder_fc(torch.cat([dev_reg_emb, dev_writer_emb,
                                                           dev_keywd_emb, dev_magazine_emb], 1))
-        merged_dev_embedding = F.layer_norm(merged_dev_embedding, [self.latent_dim])
+        merged_dev_embedding = F.layer_norm(merged_dev_embedding, [merged_dev_embedding.size(-1)])
+        merged_dev_embedding = F.dropout(merged_dev_embedding)
 
         ## predict
-        item_output = torch.einsum('bld,dv->blv', output, merged_dev_embedding.t())
+        item_output = torch.einsum('bld,dv->blv', output.permute(1,0,2), merged_dev_embedding.t())
         item_output += self.predict_bias.expand_as(item_output)
-        #writer_output = self.writer_idx_fc(output)
-        #keywd_output = self.keywd_idx_fc(output)
 
-        return item_output, None, None#, writer_output, keywd_output
+        return item_output
