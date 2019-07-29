@@ -5,6 +5,7 @@ def get_args():
 
     parser.add_argument('--mode', type=str, default='Train', help='Train / Dev / Test')
     parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--test_epoch', type=int, default=9)
     parser.add_argument('--num_epochs', type=int, default=20)
     parser.add_argument('--lr', type=float, default=0.0004)
     parser.add_argument('--hid_dim', type=int, default=128)

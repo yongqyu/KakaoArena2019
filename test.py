@@ -25,7 +25,7 @@ model = RNN(args.num_readers, args.num_writers, args.num_keywords,
             args.num_items, args.num_magazines, args.hid_dim, valid_tensor).to(device)
 print(model)
 model.eval()
-model.load_state_dict(torch.load('./models/9_rnn_attention.pkl'))
+model.load_state_dict(torch.load('./models/%d_rnn_attention.pkl'%args.test_epoch))
 
 file_w = open('./recommend.txt', 'w')
 file = open(dev_users_path, 'r')
